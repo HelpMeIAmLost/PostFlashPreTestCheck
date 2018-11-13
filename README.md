@@ -14,7 +14,7 @@ Aside from the libraries listed in the requirements.txt file, I used the followi
 ### Before anything else..
 *  The addresses of StubVersion_Main and StubVersion_Sub are still static (defined in the source code)
 *  DBC files should be in the following folder structure relative to the script folder:
-'''
+```
    ./DBC
       |- <variant 1>
          |- FILE1_var1.dbc
@@ -32,7 +32,7 @@ Aside from the libraries listed in the requirements.txt file, I used the followi
          |- FILE2_var3.dbc
          |- FILE3_var3.dbc
          |- FILE4_var3.dbc
-'''
+```
 *  DBC files are CAN channel-specific. Thus, the script should be updated with the proper channel-DBC configuration
 
 ### Command line syntax
