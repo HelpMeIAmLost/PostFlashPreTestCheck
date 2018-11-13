@@ -1,5 +1,7 @@
 # Rowen
 .idea/
+*.asc
+DBC/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
