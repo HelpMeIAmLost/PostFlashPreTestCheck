@@ -2,6 +2,9 @@
 .idea/
 *.asc
 DBC/
+Build/
+*.xlsx
+*.db
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

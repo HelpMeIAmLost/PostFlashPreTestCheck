@@ -13,27 +13,27 @@ Aside from the libraries listed in the requirements.txt file, I used the followi
 ## Usage
 ### Before anything else..
 *  The addresses of StubVersion_Main and StubVersion_Sub are still static (defined in the source code)
-*  DBC files should be in the following folder structure relative to the script folder:
+*  DBC files should be in the following folder structure relative to the script folder (DBC file names could be different:
 ```
    ./DBC
       |- <variant 1>
-         |- FILE1_var1.dbc
-         |- FILE2_var1.dbc
-         |- FILE3_var1.dbc
-         |- FILE4_var1.dbc
+         |- FILE1_<var 1>.dbc
+         |- FILE2_<var 1>.dbc
+         |- FILE3_<var 1>.dbc
+         |- FILE4_<var 1>.dbc
       |- <variant 2>
-         |- FILE1_var2.dbc
-         |- FILE2_var2.dbc
-         |- FILE3_var2.dbc
-         |- FILE4_var2.dbc
+         |- FILE1_<var 2>.dbc
+         |- FILE2_<var 2>.dbc
+         |- FILE3_<var 2>.dbc
+         |- FILE4_<var 2>.dbc
       :
       |- <variant n>
-         |- FILE1_var3.dbc
-         |- FILE2_var3.dbc
-         |- FILE3_var3.dbc
-         |- FILE4_var3.dbc
+         |- FILE1_<var n>.dbc
+         |- FILE2_<var n>.dbc
+         |- FILE3_<var n>.dbc
+         |- FILE4_<var n>.dbc
 ```
-*  DBC files are CAN channel-specific. Thus, the script should be updated with the proper channel-DBC configuration
+*  DBC files are CAN channel-specific. Thus, the script should be updated with the proper channel-DBC file configuration
 
 ### Command line syntax
 ```
@@ -41,5 +41,4 @@ py PostFlashPreTestCheck.py
 ```
 
 ## What's next?
-*  Automatically update the addresses of StubVersion_Main and StubVersion_Sub
-*  Make the pairing of the CAN channel and DBC file optional to the user
+*  The location of MAP and DBC files are, by default, set to `Build/` and `DBC/` folders, respectively. Commandline arguments will be added in case these locations need to be changed.
