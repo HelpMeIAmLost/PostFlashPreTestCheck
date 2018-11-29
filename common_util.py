@@ -27,17 +27,20 @@ def create_connection(db_file):
     return None
 
 
-def execute_sql(conn, sql_statement, values=None):
+def execute_sql(conn, sql_statement, values=None, select=False):
     """ create a table from the create_table_sql statement
-    :param conn: Connection object
+    :param conn: connection object
     :param sql_statement: SQL statement
-    :param values: Values to INSERT, in case SQL statement is INSERT request
+    :param values: values to INSERT/UPDATE, in case SQL statement is INSERT/UPDATE request
+    :param select: SQL statement is a SELECT statement
     :return:
     """
     try:
         c = conn.cursor()
         if values is None:
             c.execute(sql_statement)
+            if select:
+                return c.fetchall()
         else:
             c.execute(sql_statement, values)
     except Error as e:
@@ -53,9 +56,9 @@ def commit_disconnect_database(conn):
     conn.close()
 
 
-def write_to_excel(df, filename):
+def write_to_excel(df, filename, sheet_name):
     writer = ExcelWriter(filename)
-    df.to_excel(writer, 'Sheet1', index=False)
+    df.to_excel(writer, sheet_name, index=False)
     writer.save()
     writer.close()
 
