@@ -9,6 +9,7 @@ Aside from the libraries listed in the requirements.txt file, I used the followi
 
 ### What's in `requirements.txt`?
 *  python-can 3.0.0
+*  numpy 1.15.3
 
 ## Usage
 ### Before anything else..
