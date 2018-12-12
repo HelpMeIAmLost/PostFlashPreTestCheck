@@ -241,8 +241,8 @@ class PostFlashPreTestCheck(object):
                     if root.find(self.variant) != -1:
                         if can_ch < 4:
                             if file.find(dbc_list[variant_index][can_ch]) != -1:
-                                dbc_file = open(os.path.join(root, file), 'r')
-                                for line in dbc_file:
+                                current_dbc_file = open(os.path.join(root, file), 'r')
+                                for line in current_dbc_file:
                                     if line.find('BO_ ') != -1 and line.find('EYE') != -1:
                                         data = line.split()
                                         self.message_list.append({'can_ch': can_ch+1, 'can_id': int(data[1]),
@@ -259,7 +259,7 @@ class PostFlashPreTestCheck(object):
                                                     self.message_list[index]['cycle_ms'] = int(data[4][:-1])
                                                 break
 
-                                dbc_file.close()
+                                current_dbc_file.close()
                                 can_ch += 1
                             else:
                                 pass
