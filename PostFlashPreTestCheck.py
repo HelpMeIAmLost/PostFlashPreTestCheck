@@ -12,6 +12,8 @@ import sys
 import os
 import numpy as np
 
+MIN_PYTHON = (3, 7)
+
 logging.basicConfig(filename='run.log', filemode='w', level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
 
@@ -355,6 +357,9 @@ class PostFlashPreTestCheck(object):
         write_to_excel(data_frame, 'SVS350_{}_CANTx_Checklist.xlsx'.format(self.variant), self.variant)
         print('Done!')
 
+
+if sys.version_info < MIN_PYTHON:
+    sys.exit("Python %s.%s or later is required. Please check your Python version.\n" % MIN_PYTHON)
 
 debug = False
 parser = argparse.ArgumentParser()
