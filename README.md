@@ -13,7 +13,7 @@ Aside from the libraries listed in the requirements.txt file, I used the followi
 
 ## Usage
 ### Before anything else..
-*  The addresses of StubVersion_Main and StubVersion_Sub are still static (defined in the source code)
+*  The addresses of `StubVersion_Main` and `StubVersion_Sub` are still static (defined in the source code)
 *  DBC files should be in the following folder structure relative to the script folder (DBC file names could be different:
 ```
    ./DBC
@@ -35,11 +35,18 @@ Aside from the libraries listed in the requirements.txt file, I used the followi
          |- FILE4_<var n>.dbc
 ```
 *  DBC files are CAN channel-specific. Thus, the script should be updated with the proper channel-DBC file configuration
+*  The `Build` folder containing the `application.map` file of the target software
 
 ### Command line syntax
+`py PostFlashPreTestCheck.py variant [-m <map folder path>] [-d <DBC folder path>]`
+where,
 ```
-py PostFlashPreTestCheck.py
+  variant - variant to be tested
 ```
-
+Options:
+```
+  -m <map folder path> - points the script to the location of the map file relative to the script location, default is Build/
+  -d <DBC folder path> - points the script to the location of the DBC files (with the folder structure described in the Usage section of this readme), default is DBC/
+```
 ## What's next?
-*  The location of MAP and DBC files are, by default, set to `Build/` and `DBC/` folders, respectively. Commandline arguments will be added in case these locations need to be changed.
+*  Code optimization

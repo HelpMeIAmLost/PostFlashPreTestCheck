@@ -1,14 +1,43 @@
 from pandas import ExcelWriter
-from xlrd import open_workbook
 from sqlite3 import Error
+from struct import *
 
 import sqlite3
 import argparse
 import os
 import pandas as pd
+import numpy as np
 
-OFF = 0
-ON = 1
+
+def uint8_info(limit):
+    if limit == 'min':
+        return np.iinfo(np.uint8).min
+    elif limit == 'max':
+        return np.iinfo(np.uint8).max
+    elif limit == 'any':
+        return 0x7F
+    else:
+        return 0
+
+
+def float32_info(limit, to_hex=False):
+    if limit == 'min':
+        return float_to_hex(np.finfo(np.float32).min)
+    elif limit == 'max':
+        return float_to_hex(np.finfo(np.float32).max)
+    elif limit == 'any':
+        return float_to_hex(1.23456789)
+    else:
+        return 0
+
+
+def float_to_hex(f):
+    return hex(unpack('<I', pack('<f', f))[0])
+
+
+def hex_to_float(h):
+    h = h.lstrip('0x')
+    return unpack('!f', bytes.fromhex(h))[0]
 
 
 def create_connection(db_file):
@@ -27,30 +56,64 @@ def create_connection(db_file):
     return None
 
 
-def execute_sql(conn, sql_statement, values=None, select=False):
+def execute_sql(conn, sql_statement, values=None, select=False, count=False, just_one=False):
     """ create a table from the create_table_sql statement
-    :param conn: connection object
+    :param conn: SQLite database connection object
     :param sql_statement: SQL statement
     :param values: values to INSERT/UPDATE, in case SQL statement is INSERT/UPDATE request
     :param select: SQL statement is a SELECT statement
-    :return:
+    :param count: True if the row count of the SELECT statement will be returned, default is False
+    :param just_one: True if the SELECT statement returns only 1 row, default is False
+    :return: fetchall() rows for SELECT, 0 for success, -1 for locked database, -2 for something else
     """
     try:
         c = conn.cursor()
         if values is None:
             c.execute(sql_statement)
             if select:
-                return c.fetchall()
+                if count:
+                    row_count = 0
+                    rows = c.fetchall()
+                    for row in rows:
+                        row_count += 1
+                    return rows, row_count
+                else:
+                    if just_one:
+                        return c.fetchone()
+                    else:
+                        return c.fetchall()
         else:
-            c.execute(sql_statement, values)
+            if np.nan in values or '-' in values or '―' in values or 'ー' in values:
+                pass
+            else:
+                c.execute(sql_statement, values)
+                if select:
+                    if count:
+                        row_count = 0
+                        rows = c.fetchall()
+                        for row in rows:
+                            row_count += 1
+                        return rows, row_count
+                    else:
+                        if just_one:
+                            return c.fetchone()
+                        else:
+                            return c.fetchall()
+        return 0
     except Error as e:
-        print(e)
+        if e.__str__().find('UNIQUE constraint failed:') == -1:
+            print(e, values if values is not None else None)
+        elif e.__str__() == 'database is locked':
+            return -1
+        else:
+            print(e)
+            return -2
 
 
 def commit_disconnect_database(conn):
     """ Commit the changes done to the SQLite database, then close the connection
-    :param conn:
-    :return:
+    :param conn: SQLite database connection object
+    :return: None
     """
     conn.commit()
     conn.close()

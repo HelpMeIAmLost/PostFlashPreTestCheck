@@ -5,14 +5,12 @@ from __future__ import print_function
 from time import sleep
 from pathlib import Path
 from common_util import *
-from sqlite3 import Error
 
 import can.interfaces.vector
 import logging
 import sys
 import os
 import numpy as np
-import sqlite3
 
 logging.basicConfig(filename='run.log', filemode='w', level=logging.INFO,
                     format='%(asctime)s - %(levelname)s - %(message)s')
@@ -24,6 +22,7 @@ class PostFlashPreTestCheck(object):
         :param variant: str
         :param map_folder: str
         :param dbc_folder: str
+        :return None
         """
         self.variant = str(variant).upper()
         self.dbc_folder = Path(dbc_folder)
@@ -37,12 +36,15 @@ class PostFlashPreTestCheck(object):
 
     def get_stub_variable_addresses(self):
         """ search for the addresses of StubVersion_Main and StubVersion_Sub in the Build/application.map file
+
+        :return None
         """
         addresses = {'StubVersion_Main': 0x0, 'StubVersion_Sub': 0x0}
         key_value = 'StubVersion_Main'
         address_header_found = False
         addresses_found = False
 
+        print('Checking for the addresses of StubVersion_Main and StubVersion_Sub in application.map..')
         try:
             with open(self.map_folder / 'application.map', 'r') as fp:
                 for line in fp:
@@ -67,7 +69,7 @@ class PostFlashPreTestCheck(object):
 
         return addresses, addresses_found
 
-    def connect(self, xcp_bus):
+    def connect_to_xcp(self, xcp_bus):
         try:
             self.bus = can.ThreadSafeBus(bustype='vector', channel=xcp_bus-1,
                                          can_filters=[{"can_id": 0x7e1, "can_mask": 0x7e1, "extended": False}],
@@ -189,7 +191,7 @@ class PostFlashPreTestCheck(object):
                 logging.info('Command: SHORT_UPLOAD for stub version (Main) Response: {}'.format(
                     hex(response_message.data[0])))
 
-    def disconnect(self):
+    def disconnect_from_xcp(self):
         # self.notifier.stop()
         msg = can.Message(arbitration_id=0x7e0,
                           data=[0xFE, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00],
@@ -214,6 +216,7 @@ class PostFlashPreTestCheck(object):
             :param dbc_folder: The location of the DBC files relative to the script folder, with 1 folder per variant
             :return: Updated class variable message_list
         """
+        print('Creating a list of CAN IDs (including DBG signals)')
         if self.variant == 'GC7' or self.variant == 'RE7':
             variant_index = 0
         else:
@@ -260,6 +263,7 @@ class PostFlashPreTestCheck(object):
                                 pass
                         else:
                             break
+        print('Done!')
 
     def wait_for_messages(self, can_ch):
         """Wait for CAN messages in the bus specified
@@ -342,90 +346,89 @@ class PostFlashPreTestCheck(object):
 
         :return: None
         """
+        print('Generating report..')
         # Dump result to an Excel file
         data_frame = pd.DataFrame.from_dict(self.message_status, orient='index',
                                             columns=['CAN Channel', 'CAN ID', 'Cycle (ms)', 'Average Cycle (ms)',
                                                      'Status', 'Timing', 'Notes']
                                             )
         write_to_excel(data_frame, 'SVS350_{}_CANTx_Checklist.xlsx'.format(self.variant), self.variant)
-
-    def update_internal_signals(self):
-        conn = create_connection('interface.db')
-        if conn is not None:
-            sql_select = '''SELECT link FROM internal_signals;'''
-            sql_update_internal_signal = ''' UPDATE internal_signals
-                      SET address = ?
-                      WHERE link = ?;'''
-            rows = execute_sql(conn, sql_select, select=True)
-            for row in rows:
-                address_header_found = False
-                with open(self.map_folder / 'application.map', 'r') as fp:
-                    for line in fp:
-                        if line.find('* Symbols (sorted on name)') != -1:
-                            address_header_found = True
-
-                        if address_header_found and line.find(row) != -1:
-                            internal_signal_name = row
-                            temp_line = line.split()
-                            internal_signal_address = int(temp_line[3], 16)
-                            execute_sql(conn, sql_update_internal_signal,
-                                        (internal_signal_name, internal_signal_address))
-                            break
-        else:
-            print("Error! cannot create the database connection.")
+        print('Done!')
 
 
+debug = False
 parser = argparse.ArgumentParser()
-parser.add_argument("variant", help='variant to be checked', choices=['GC7', 'HR3'])
+if debug:
+    parser.add_argument('-i', dest='variant', help='set to GC7, for debugging purposes', default='GC7')
+else:
+    parser.add_argument("variant", help='variant to be checked', choices=['GC7', 'HR3'])
 parser.add_argument('-m', dest="map_folder", help='path of the MAP file', default='Build/')
 parser.add_argument('-d', dest="dbc_folder", help='path of the DBC folders for each variant', default='DBC/')
 args = parser.parse_args()
 
-pretest_check = PostFlashPreTestCheck(args.variant, args.map_folder, args.dbc_folder)
-# pretest_check = PostFlashPreTestCheck('GC7', 'Build/', 'DBC/')
-# Update with address of StubVersion_Main
-signal_address, found = pretest_check.get_stub_variable_addresses()
-if found:
-    message1 = can.Message(arbitration_id=0x7E0,
-                           data=[0xF4, 1, 0x0, 0x0,
-                                 signal_address['StubVersion_Main'] & 0xFF,
-                                 (signal_address['StubVersion_Main'] >> 8) & 0xFF,
-                                 (signal_address['StubVersion_Main'] >> 16) & 0xFF,
-                                 (signal_address['StubVersion_Main'] >> 24) & 0xFF],
-                           extended_id=False)
-    message2 = can.Message(arbitration_id=0x7E0,
-                           data=[0xF4, 1, 0x0, 0x0,
-                                 signal_address['StubVersion_Sub'] & 0xFF,
-                                 (signal_address['StubVersion_Sub'] >> 8) & 0xFF,
-                                 (signal_address['StubVersion_Sub'] >> 16) & 0xFF,
-                                 (signal_address['StubVersion_Sub'] >> 24) & 0xFF],
-                           extended_id=False)
-    print('Starting post-flash checking..')
-    # Connect to the XCP slave
-    pretest_check.connect(2)
-    # pretest_check.connect()
-    # Poll the output signal every 10ms
-    pretest_check.get_stub_version(message1, message2)
-    sleep(1)
-    # Disconnect from XCP slave
-    pretest_check.disconnect()
+if not os.path.exists(args.map_folder):
+    print('{} folder not found!'.format(args.map_folder))
+elif not os.path.exists(os.path.join(args.map_folder, 'application.map')):
+    print('application.map file not found in {} folder!'.format(args.map_folder))
+elif not os.path.exists(args.dbc_folder):
+    print('DBC folder not found!')
 else:
-    print('Cannot determine stub version. Please make sure the latest version of the application stub modules is used.')
+    dbc_variant_folder_found = False
+    dbc_files_found = False
+    for dbc_root, dbc_dirs, dbc_files in os.walk(args.dbc_folder):
+        if dbc_root.find(args.variant) != -1:
+            dbc_variant_folder_found = True
+            for dbc_file in dbc_files:
+                if dbc_file.endswith(".dbc"):
+                    dbc_files_found = True
+                    break
+            break
 
-print('Creating a list of CAN IDs (including DBG signals)')
-pretest_check.create_message_list()
-print('Waiting for CAN messages..')
-pretest_check.wait_for_messages(1)
-pretest_check.wait_for_messages(2)
-pretest_check.wait_for_messages(3)
-pretest_check.wait_for_messages(4)
-logging.shutdown()
-# print('Please check the run.log file')
-print('Generating report')
-pretest_check.generate_report()
-print('Done!')
+    if not dbc_variant_folder_found:
+        print('{} folder not found in the DBC folder!'.format(args.variant))
+    elif not dbc_files_found:
+        print('DBC files for {} not found in the DBC folder!'.format(args.variant))
+    else:
+        pretest_check = PostFlashPreTestCheck(args.variant, args.map_folder, args.dbc_folder)
 
-# Update the interface database for interface test
-# Update internal signal information
-pretest_check.update_internal_signals()
-# Update external signal information
+        # Update with address of StubVersion_Main
+    # if not debug:
+        signal_address, found = pretest_check.get_stub_variable_addresses()
+        if found:
+            print('')
+            message1 = can.Message(arbitration_id=0x7E0,
+                                   data=[0xF4, 1, 0x0, 0x0,
+                                         signal_address['StubVersion_Main'] & 0xFF,
+                                         (signal_address['StubVersion_Main'] >> 8) & 0xFF,
+                                         (signal_address['StubVersion_Main'] >> 16) & 0xFF,
+                                         (signal_address['StubVersion_Main'] >> 24) & 0xFF],
+                                   extended_id=False)
+            message2 = can.Message(arbitration_id=0x7E0,
+                                   data=[0xF4, 1, 0x0, 0x0,
+                                         signal_address['StubVersion_Sub'] & 0xFF,
+                                         (signal_address['StubVersion_Sub'] >> 8) & 0xFF,
+                                         (signal_address['StubVersion_Sub'] >> 16) & 0xFF,
+                                         (signal_address['StubVersion_Sub'] >> 24) & 0xFF],
+                                   extended_id=False)
+            print('Starting post-flash checking..')
+            # Connect to the XCP slave
+            pretest_check.connect_to_xcp(2)
+            # pretest_check.connect()
+            # Poll the output signal every 10ms
+            pretest_check.get_stub_version(message1, message2)
+            sleep(1)
+            # Disconnect from XCP slave
+            pretest_check.disconnect_from_xcp()
+        else:
+            print('Cannot determine stub version. '
+                  'Please make sure the latest version of the application stub modules is used.')
+
+        pretest_check.create_message_list()
+        print('Waiting for CAN messages..')
+        pretest_check.wait_for_messages(1)
+        pretest_check.wait_for_messages(2)
+        pretest_check.wait_for_messages(3)
+        pretest_check.wait_for_messages(4)
+        logging.shutdown()
+        # print('Please check the run.log file')
+        pretest_check.generate_report()
